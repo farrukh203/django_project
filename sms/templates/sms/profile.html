@@ -8,6 +8,30 @@
 <body>
     <h4> User Profile </h4>
     <p>Wellwome! {{user}}</p>
+    {% if change_form.non_field_errors %}
+    {% for nfr in change_form.non_field_errors %}
+    <p class="text-danger">{{nfr}}</p>
+    {% endfor %}
+    {% endif %}
+    
+    <form action="" method="post">
+        {% csrf_token %}
+        {% if change_form %}
+        {% for fm in change_form %}
+            <p>
+                {{fm.label_tag}} {{fm}}
+                {% for error in fm.errors %}{% endfor %}
+                <span class='text-danger'>{{error}}</span>
+            </p>
+        {% endfor %}
+        {% endif %}
+    </form>
     <a href="{% url "logout" %}">logut</a>
+    <a href="{% url "changepassword" %}">Change Password</a>
+    {% if messages %}
+    {% for message in messages %}
+    <p {% if message.tags %} class="alert alert-{{message.tags}}" {% endif %}>{{message}}</p>
+    {% endfor %}
+    {% endif %}
 </body>
 </html>

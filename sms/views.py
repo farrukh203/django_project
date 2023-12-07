@@ -2,10 +2,10 @@ from django.shortcuts import render
 from django.http import HttpResponseRedirect
 from django.views import View
 from django.contrib.auth.models import User
-from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
-from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth.forms import AuthenticationForm, PasswordChangeForm
+from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
 from django.contrib import messages
-from .forms import StdModelForm, SingUpForm
+from .forms import StdModelForm, SingUpForm, EditUserChangeForm, EditAdminChangeForm
 from .models import StudentModel
 
 # Create your views here.
@@ -67,8 +67,11 @@ class StRegistrationDeleteView(View):
 
 class SingUpView(View):
     def get(self, request):
-        form = SingUpForm(label_suffix=' ')
-        return render(request, 'sms/singup.html', {'signup_form': form})
+        if not request.user.is_authenticated:
+            form = SingUpForm(label_suffix=' ')
+            return render(request, 'sms/singup.html', {'signup_form': form})
+        else:
+            return HttpResponseRedirect('/students/profile/')
     
     def post(self, request):
         if request.method == 'POST':
@@ -108,14 +111,39 @@ class UserLoginView(View):
         return render(request, 'sms/login.html', {'login_form': fm})
     
 
-def profile_view(request):
-    if request.user.is_authenticated:
-        user = request.user
-        return render(request, 'sms/profile.html', {'user': user})
-    else:
-        return HttpResponseRedirect('/students/user-login/')
+class ProfileView(View):
+    def get(self, request):
+        if request.user.is_authenticated:
+            if request.user.is_superuser:
+                fm = EditAdminChangeForm(instance=request.user)
+            else:
+                fm = EditUserChangeForm(instance=request.user)
+            return render(request, 'sms/profile.html', {'user': request.user.username, 'change_form': fm})
+        else:
+            return HttpResponseRedirect('/students/user-login/')
     
 
 def user_logout_view(request):
     logout(request)
     return HttpResponseRedirect('/students/user-login/')
+
+
+class ChangePasswordView(View):
+    def get(self, request):
+        if request.user.is_authenticated:
+            fm = PasswordChangeForm(user=request.user)
+            return render(request, 'sms/change_password.html', {'change_form': fm})
+        else:
+            return HttpResponseRedirect('/students/user-login/')
+        
+    def post(self, request):
+        if request.method == 'POST':
+            fm = PasswordChangeForm(user=request.user, data=request.POST)
+            if fm.is_valid():
+                fm.save()
+                update_session_auth_hash(request, fm.user)
+                messages.success(request, 'Password changed successfully!!!')
+                return HttpResponseRedirect('/students/profile/')
+            else:
+                return render(request, 'sms/change_password.html', {'change_form': fm})
+        
